@@ -124,9 +124,7 @@ public class SimpleAPDU {
                 
                 byte[] byteDataToEncrypt = new byte[DATALENGTH];
                         
-                System.arraycopy(NEW_USER_PIN, 0, byteDataToEncrypt, 0, NEW_USER_PIN.length);
-                for (short i = (short) NEW_USER_PIN.length; i < DATALENGTH; i++)
-                    byteDataToEncrypt[i] = 0;
+                byteDataToEncrypt = NEW_USER_PIN;
                 System.out.println("PIN Data " + cardManager.bytesToHex(byteDataToEncrypt));
                                 
                 final int KEYLENGTH = 128;	
