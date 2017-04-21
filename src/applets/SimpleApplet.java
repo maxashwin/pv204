@@ -26,6 +26,7 @@ public class SimpleApplet extends javacard.framework.Applet
     final static byte INS_SIGNDATA                   = (byte) 0x58;
     final static byte INS_GETAPDUBUFF                = (byte) 0x59;
     final static byte INS_ENCRYPTDECRYPT             = (byte) 0x5B;
+    final static byte INS_GENHMAC                    = (byte) 0x5C;
     
     //Add a Instruction to handle user instructions
     final static byte INS_USERINPUT                  = (byte) 0x5A;
@@ -53,6 +54,8 @@ public class SimpleApplet extends javacard.framework.Applet
     private   byte        m_ramArray[] = null;
     // PERSISTENT ARRAY IN EEPROM
     private   byte       m_dataArray[] = null;
+    
+    private static short hashLength = (short) 32;
 
     protected SimpleApplet(byte[] buffer, short offset, byte length)
     {
@@ -171,6 +174,7 @@ public class SimpleApplet extends javacard.framework.Applet
                 case INS_VERIFYPIN: VerifyPIN(apdu); break;
                 case INS_SETPIN: SetPIN(apdu); break;
                 case INS_ENCRYPTDECRYPT: EncryptDecrypt(apdu); break;
+                case INS_GENHMAC: generateHMAC(apdu); break;
                 default :
                     // The INS code is not supported by the dispatcher
                     ISOException.throwIt( ISO7816.SW_INS_NOT_SUPPORTED ) ;
@@ -233,7 +237,7 @@ public class SimpleApplet extends javacard.framework.Applet
       }
     }
     
-    void HMAC(APDU apdu) {
+    void generateHMAC(APDU apdu) {
         
         byte[] apdubuf = apdu.getBuffer();
         short dataLen = apdu.setIncomingAndReceive();
@@ -245,11 +249,10 @@ public class SimpleApplet extends javacard.framework.Applet
         byte[] ipadK = JCSystem.makeTransientByteArray(dataLen, JCSystem.CLEAR_ON_DESELECT);
 
         byte[] arrayCat = JCSystem.makeTransientByteArray((short) (2 * dataLen), JCSystem.CLEAR_ON_DESELECT);
-        byte[] arrayFinal = JCSystem.makeTransientByteArray((short) (2 * dataLen), JCSystem.CLEAR_ON_DESELECT);
+        byte[] arrayFinal = JCSystem.makeTransientByteArray(hashLength, JCSystem.CLEAR_ON_DESELECT);
 
         byte[] key = JCSystem.makeTransientByteArray(dataLen, JCSystem.CLEAR_ON_DESELECT);
         m_aesKey.getKey(key, (short) 0);
-        //m_aesKey.getKey(key, (short) 0);
 
         for (short i = 0; i < dataLen; i++) {
             ipadK[i] = (byte) (key[i] ^ ipad);
@@ -270,14 +273,18 @@ public class SimpleApplet extends javacard.framework.Applet
             //System.out.println("Y||X = (K XOR OPAD) || X : " + CardMngr.bytesToHex(m_ramArray));
 
         }
+        
+        //Util.arrayCopyNonAtomic(m_ramArray, dataLen, apdubuf, ISO7816.OFFSET_CDATA, hashLength);
 
+        
         if (m_hash != null) {
-            m_hash.doFinal(m_ramArray, (short) 0, (short) (dataLen + (short) 20), arrayFinal, (short) 0);
+            m_hash.doFinal(m_ramArray, (short) 0, (short) (dataLen + hashLength), arrayFinal, (short) 0);
         }
+        //Util.arrayCopyNonAtomic(m_ramArray, (short) 0, apdubuf, ISO7816.OFFSET_CDATA, dataLen);
 
-        //Util.arrayCopyNonAtomic(HOTP, (short) 0, apdubuf, ISO7816.OFFSET_CDATA, OTPsize);
+        Util.arrayCopyNonAtomic(arrayFinal, (short)0, apdubuf, ISO7816.OFFSET_CDATA, hashLength);
 
-        //apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, OTPsize);
+        apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, hashLength);
     }
 
     
