@@ -5,10 +5,7 @@ import javax.smartcardio.ResponseAPDU;
 import java.security.*;
 import javacard.framework.*;
 import javax.crypto.*;
-import com.licel.jcardsim.io.CAD;
-import com.licel.jcardsim.io.JavaxSmartCardInterface;
-import javacard.framework.APDU;
-import javacard.framework.*;
+import com.licel.jcardsim.io.*;
 import javax.crypto.spec.*;
 
 /**
