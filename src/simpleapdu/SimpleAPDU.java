@@ -8,8 +8,7 @@ import javax.crypto.*;
 import com.licel.jcardsim.io.CAD;
 import com.licel.jcardsim.io.JavaxSmartCardInterface;
 import javacard.framework.APDU;
-import javacard.framework.JCSystem;
-import javacard.framework.Util;
+import javacard.framework.*;
 import javax.crypto.spec.*;
 
 /**
