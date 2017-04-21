@@ -39,14 +39,21 @@ public class SimpleAPDU {
      private static final byte TESTDATA[] = {
         (byte) 0x40, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44, (byte) 0x45, (byte) 0x46, (byte) 0x47,
         (byte) 0x38, (byte) 0x39, (byte) 0x40, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44, (byte) 0x45};
+    
+    private static short hashLength = 32; 
+    
+    private static short DATALENGTH = 16;
+    
+    private static byte[] HMac = new byte[hashLength];
      
     private static final byte[] cryptPassword = KEY_16;
      
-    void generateHMAC(byte[] buffer) throws NoSuchAlgorithmException {
+    private static void generateHMAC(byte[] buffer) throws NoSuchAlgorithmException {
         
         byte[] apdubuf = buffer;
         short dataLen = (short) buffer.length;
        
+        //System.out.println("Length of buffer is " + dataLen);
         byte ipad = 0x36;
         byte opad = 0x5c;
 
@@ -54,7 +61,7 @@ public class SimpleAPDU {
         byte[] ipadK = new byte[dataLen];
 
         byte[] arrayCat = new byte[2 * dataLen];
-        byte[] arrayFinal = new byte[2 * dataLen];
+        //byte[] arrayFinal = new byte[2 * dataLen];
 
         byte[] key = new byte[dataLen];
         
@@ -65,7 +72,7 @@ public class SimpleAPDU {
             opadK[i] = (byte) (key[i] ^ opad);
         }
         
-        byte[] tempArray = new byte[256];
+        byte[] tempArray = new byte[dataLen + hashLength];
 
         //Util.arrayCopyNonAtomic(opadK, (short) 0, m_ramArray, (short) 0, dataLen);
         System.arraycopy(opadK, 0, tempArray, 0, dataLen);
@@ -82,19 +89,22 @@ public class SimpleAPDU {
         MessageDigest hash256;
         hash256 = MessageDigest.getInstance("SHA-256");
         byte[] hashsum1 = new byte[hash256.getDigestLength()];
-        //byte[] hashsum2 = new byte[hash256.getDigestLength()];
+
+        System.out.println("Length of hash = " + hash256.getDigestLength());
         
         if (hash256 != null) {
             //hash256.doFinal(arrayCat, (short) 0, (short) ((short) 2 * dataLen), tempArray, dataLen);
             //System.out.println("Y||X = (K XOR OPAD) || X : " + CardMngr.bytesToHex(m_ramArray));
             hashsum1 = hash256.digest(arrayCat);
         }
-        System.arraycopy(hashsum1, 0, tempArray, dataLen, dataLen);
-        
+        System.out.println();
+        System.out.println("Generated HashSum1 is " + cardManager.bytesToHex(hashsum1));
+        System.out.println();
+        System.arraycopy(hashsum1, 0, tempArray, dataLen, hashLength);
         
         if (hash256 != null) {
             //m_hash.doFinal(m_ramArray, (short) 0, (short) (dataLen + (short) 20), arrayFinal, (short) 0);
-            arrayFinal = hash256.digest(tempArray);
+            HMac = hash256.digest(tempArray);
         }
         
 
@@ -104,189 +114,34 @@ public class SimpleAPDU {
     public static void main(String[] args) {
         try {
                 
-                KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-		keyGen.init(128);
-		SecretKey secretKey = keyGen.generateKey();
-            
-                /*************************** Set a default User PIN ***********************/
+                System.out.println();
+                System.out.println("************************************************************");
+                System.out.println("This is SimpleAPDU .......");
+                System.out.println("************************************************************");
+                System.out.println();
+
+                /******************Encrypt PIN Data ****************************/
                 
-                short additionalDataLen = 0;
-                byte apdu[];
-
-                short maxPINLength = (short) 4;
-                additionalDataLen = (short)(maxPINLength + maxPINLength);
-                //additionalDataLen = maxPINLength;
-                
-                apdu = new byte[CardMngr.HEADER_LENGTH + additionalDataLen];
-                apdu[CardMngr.OFFSET_CLA] = (byte) 0xB0;
-                apdu[CardMngr.OFFSET_INS] = (byte) 0x56; //56 is for Setting the PIN
-                apdu[CardMngr.OFFSET_P1] = (byte) 0x10;
-                apdu[CardMngr.OFFSET_P2] = (byte) 0x00;
-                apdu[CardMngr.OFFSET_LC] = (byte) additionalDataLen;
-
-                if (additionalDataLen != 0){
-                    //System.arraycopy(DEFAULT_USER_PIN, 0, apdu, CardMngr.OFFSET_DATA, maxPINLength);
-                    System.arraycopy(NEW_USER_PIN, 0, apdu, CardMngr.OFFSET_DATA, maxPINLength);
-                    System.arraycopy(NEW_USER_PIN, 0, apdu, (short)(CardMngr.OFFSET_DATA + (short) 4), maxPINLength);
-                }
-                
-                /************ Comn with Card ***************/
-                ResponseAPDU response = null;
-
-                if (cardManager.ConnectToCard()) {
-                    // Select our application on card
-                    cardManager.sendAPDU(SELECT_SIMPLEAPPLET);
-
-                    // TODO: send proper APDU
-                    response = cardManager.sendAPDU(apdu);
-
-                    cardManager.DisconnectFromCard();
-                } else {
-                    System.out.println("Failed to connect to card");
-                }
-
-                /******************************************/
-
-                byte[] byteResponse = response.getBytes();
-
-                //Check if the response received is correct or not
-                System.out.println(Arrays.toString(byteResponse));
-
-                if((byteResponse[0] == -112) &&  (byteResponse[1] == 0)){
-                    System.out.println("Setting of PIN successfulhaha");
-                }
-                else
-                    System.out.println("Setting of PIN Unsuccessfulhaha");
-
-
-
-                /***************************** Verifying the PIN ****************************************/
-
-                additionalDataLen = (short) 4;
-                apdu = new byte[CardMngr.HEADER_LENGTH + additionalDataLen];
-                apdu[CardMngr.OFFSET_CLA] = (byte) 0xB0;
-                apdu[CardMngr.OFFSET_INS] = (byte) 0x55; 
-                apdu[CardMngr.OFFSET_P1] = (byte) 0x10;
-                apdu[CardMngr.OFFSET_P2] = (byte) 0x00;
-                apdu[CardMngr.OFFSET_LC] = (byte) additionalDataLen;
-
-                if (additionalDataLen != 0){
-                    System.arraycopy(NEW_USER_PIN, 0, apdu, CardMngr.OFFSET_DATA, (short) 4);
-                }
-
-                if (cardManager.ConnectToCard()) {
-
-                    cardManager.sendAPDU(SELECT_SIMPLEAPPLET);
-
-                    response = cardManager.sendAPDU(apdu);
-
-                    cardManager.DisconnectFromCard();
-                } else {
-                    System.out.println("Failed to connect to card");
-                }
-
-                byteResponse = response.getBytes();
-
-                if((byteResponse[0]== -112) &&  (byteResponse[1] == 0)){
-                    System.out.println("Verification of PIN successful");
-                }
-                else
-                    System.out.println("Verification of PIN Unsuccessful");
-
-                /***************************Set the Encryption and Decryption Password **********************************/
-            
-                //Take a password and Set it in the Card in Trusted Environment
-          
-                //TO BE CHANGED.................USE A HASH FUNCTION TO HASH THE PASSWORD BEFORE SETTING
-                //byte[] cryptPassword = secretKey.getEncoded(); 
-                //byte[] cryptPassword = KEY_16;
-
-                //System.out.println("Encryption Decryption PW :" + cardManager.bytesToHex(cryptPassword));
-                
-                additionalDataLen = (short) cryptPassword.length;
-                apdu = new byte[CardMngr.HEADER_LENGTH + additionalDataLen];
-                apdu[CardMngr.OFFSET_CLA] = (byte) 0xB0;
-                apdu[CardMngr.OFFSET_INS] = (byte) 0x52; //52 is for Setting the Encryption and Decrytption Key
-                apdu[CardMngr.OFFSET_P1] = (byte) 0x10;
-                apdu[CardMngr.OFFSET_P2] = (byte) 0x00;
-                apdu[CardMngr.OFFSET_LC] = (byte) additionalDataLen;             
-
-                if (additionalDataLen != 0){
-                    System.arraycopy(cryptPassword, 0, apdu, CardMngr.OFFSET_DATA, cryptPassword.length);
-                }
-
-                if (cardManager.ConnectToCard()) {
-                    // Select our application on card
-                    cardManager.sendAPDU(SELECT_SIMPLEAPPLET);
-                    // TODO: send proper APDU
-                    response = cardManager.sendAPDU(apdu);
-
-                    cardManager.DisconnectFromCard();
-                } else {
-                    System.out.println("Failed to connect to card");
-                }
-
-                byteResponse = response.getBytes();
-
-                if((byteResponse[0]==-112) &&  (byteResponse[1] == 0)){
-                    System.out.println("Setting of Encryption/ Decryption Key successful");
-                }
-                else
-                    System.out.println("Setting of Encryption/ Decryption Key Unsuccessful");
-
-                /******************Get the Password stored in JavaCard to encrypt/decrypt the file ****************************/
-        
-                additionalDataLen = 0;
-                apdu = new byte[CardMngr.HEADER_LENGTH + additionalDataLen];
-                apdu[CardMngr.OFFSET_CLA] = (byte) 0xB0;
-                apdu[CardMngr.OFFSET_INS] = (byte) 0x53; 
-                apdu[CardMngr.OFFSET_P1] = (byte) 0x10;
-                apdu[CardMngr.OFFSET_P2] = (byte) 0x00;
-                apdu[CardMngr.OFFSET_LC] = (byte) additionalDataLen;   
-                
-                if (additionalDataLen != 0){
-                    System.arraycopy(cryptPassword, 0, apdu, CardMngr.OFFSET_DATA, cryptPassword.length);
-                }
-                
-                if (cardManager.ConnectToCard()) {
-                    
-                    cardManager.sendAPDU(SELECT_SIMPLEAPPLET);
-                    
-                    response = cardManager.sendAPDU(apdu);
-
-                    cardManager.DisconnectFromCard();
-                } else {
-                    System.out.println("Failed to connect to card");
-                }
-
-                byteResponse = response.getBytes();
-                
-                if((byteResponse[byteResponse.length-1]==-112) &&  (byteResponse[byteResponse.length] == 0)){
-                    System.out.println("Getting of Encryption/ Decryption Key successful");
-                }
-                else
-                    System.out.println("Getting of Encryption/ Decryption Key Unsuccessful");
-               
-                
-                /*************************************************************************************************/
-
-                byte[] byteDataToEncrypt = TESTDATA;
-                                
-                /**************** AES Encryption ***************/
-                
+                byte[] byteDataToEncrypt = new byte[DATALENGTH];
+                        
+                System.arraycopy(NEW_USER_PIN, 0, byteDataToEncrypt, 0, NEW_USER_PIN.length);
+                for (short i = (short) NEW_USER_PIN.length; i < DATALENGTH; i++)
+                    byteDataToEncrypt[i] = 0;
+                System.out.println("PIN Data " + cardManager.bytesToHex(byteDataToEncrypt));
                                 
                 final int KEYLENGTH = 128;	
 		byte[] iv = new byte[KEYLENGTH / 8];
                 
-		SecureRandom prng;
-                prng = new SecureRandom();
-		prng.nextBytes(iv);
+		//SecureRandom prng;
+                //prng = new SecureRandom();
+		//prng.nextBytes(iv);
                 
                 //String siv = new String(iv);
                 System.out.println("IV =====" + cardManager.bytesToHex(iv));
                 
                 Cipher aesCipherForEncryption = Cipher.getInstance("AES/CBC/NoPadding");
                 
+                //Convert the passowrd in byte[] into SecretKey format
                 SecretKey dataKey = new SecretKeySpec(cryptPassword, 0, cryptPassword.length, "AES");
                 
                 aesCipherForEncryption.init(Cipher.ENCRYPT_MODE, dataKey, new IvParameterSpec(iv));
@@ -296,8 +151,101 @@ public class SimpleAPDU {
                 String strCipherText = new String(byteCipherText);
 		System.out.println("Cipher Text generated using AES is " + strCipherText);
                 
-                /****************Send the Encrypted Data to Card **********/
+                /*********************************************************************************/
+        
+                /*
+                short additionalDataLen = 0;
+                byte apdu[];
+                ResponseAPDU response = null;
                 
+                apdu = new byte[CardMngr.HEADER_LENGTH + additionalDataLen];
+                apdu[CardMngr.OFFSET_CLA] = (byte) 0xB0;
+                apdu[CardMngr.OFFSET_INS] = (byte) 0x53; 
+                apdu[CardMngr.OFFSET_P1]  = (byte) 0x10;
+                apdu[CardMngr.OFFSET_P2]  = (byte) 0x00;
+                apdu[CardMngr.OFFSET_LC]  = (byte) additionalDataLen;   
+                
+                if (additionalDataLen != 0){
+                    System.arraycopy(cryptPassword, 0, apdu, CardMngr.OFFSET_DATA, cryptPassword.length);
+                }
+                
+                if (cardManager.ConnectToCard()) {
+                    cardManager.sendAPDU(SELECT_SIMPLEAPPLET);
+                    response = cardManager.sendAPDU(apdu);
+                    cardManager.DisconnectFromCard();
+                } else {
+                    System.out.println();
+                    System.out.println("************************************************************");
+                    System.out.println("Failed to connect to card");
+                    System.out.println("************************************************************");
+                    System.out.println();
+                }
+
+                byte[] byteResponse = response.getBytes();
+                
+                System.out.println();
+                System.out.println("************************************************************");
+                if((byteResponse[byteResponse.length-2]==-112) &&  (byteResponse[byteResponse.length-1] == 0)){
+                    System.out.println("Getting of Encryption/ Decryption Key successful");
+                }
+                else
+                    System.out.println("Getting of Encryption/ Decryption Key Unsuccessful");
+                System.out.println("************************************************************");
+                System.out.println();
+               
+                */
+                
+                
+                
+                
+                /****************Send the Encrypted Data to Card **********/
+                /*
+                generateHMAC(byteDataToEncrypt);
+                //String strHMac = new String(HMac);
+                System.out.println("Generated HMAC is " + cardManager.bytesToHex(HMac));
+                
+                additionalDataLen =  (short)(byteDataToEncrypt.length);
+                
+                apdu = new byte[CardMngr.HEADER_LENGTH + additionalDataLen];
+                apdu[CardMngr.OFFSET_CLA] = (byte) 0xB0;
+                apdu[CardMngr.OFFSET_INS] = (byte) 0x5C; //52 is for Setting the Encryption and Decrytption Key
+                apdu[CardMngr.OFFSET_P1] = (byte) 0x10;
+                apdu[CardMngr.OFFSET_P2] = (byte) 0x00;
+                apdu[CardMngr.OFFSET_LC] = (byte) additionalDataLen;    
+                
+
+                if (additionalDataLen != 0){
+                    System.arraycopy(byteDataToEncrypt, 0, apdu, CardMngr.OFFSET_DATA, byteDataToEncrypt.length);
+                }
+
+                if (cardManager.ConnectToCard()) {
+                    cardManager.sendAPDU(SELECT_SIMPLEAPPLET);
+                    response = cardManager.sendAPDU(apdu);
+                    cardManager.DisconnectFromCard();
+                } else {
+                    System.out.println();
+                    System.out.println("************************************************************");
+                    System.out.println("Failed to connect to card");
+                    System.out.println("************************************************************");
+                    System.out.println();
+                }
+
+                byteResponse = response.getBytes();
+
+                System.out.println();
+                System.out.println("************************************************************");
+                if((byteResponse[byteResponse.length-2]==-112) &&  (byteResponse[byteResponse.length-1] == 0)){
+                    System.out.println("Decryption Successful");
+                }
+                else
+                    System.out.println("Decryption Unsuccessful");
+                System.out.println("************************************************************");
+                System.out.println();
+                
+                System.out.println("Received HMAC is " + cardManager.bytesToHex(byteResponse));
+                
+                */
+                /**********************************************************************************
                 additionalDataLen =  (short)(byteCipherText.length + iv.length);
                 
                 apdu = new byte[CardMngr.HEADER_LENGTH + additionalDataLen];
@@ -321,16 +269,24 @@ public class SimpleAPDU {
 
                     cardManager.DisconnectFromCard();
                 } else {
+                    System.out.println();
+                    System.out.println("************************************************************");
                     System.out.println("Failed to connect to card");
+                    System.out.println("************************************************************");
+                    System.out.println();
                 }
 
                 byteResponse = response.getBytes();
 
-                if((byteResponse[0]==-112) &&  (byteResponse[1] == 0)){
-                    System.out.println("Setting of Encryption/ Decryption Key successful");
+                System.out.println();
+                System.out.println("************************************************************");
+                if((byteResponse[byteResponse.length-2]==-112) &&  (byteResponse[byteResponse.length-1] == 0)){
+                    System.out.println("Decryption Successful");
                 }
                 else
-                    System.out.println("Setting of Encryption/ Decryption Key Unsuccessful");
+                    System.out.println("Decryption Unsuccessful");
+                System.out.println("************************************************************");
+                System.out.println();*/
 
                 
                 
@@ -339,9 +295,9 @@ public class SimpleAPDU {
                 /******************Get the Password stored in JavaCard to encrypt/decrypt the file ****************/
                 
                 
-                
                 /*
-                additionalDataLen = 0;
+                
+                additionalDataLen = (short) cryptPassword.length;
                 apdu = new byte[CardMngr.HEADER_LENGTH + additionalDataLen];
                 apdu[CardMngr.OFFSET_CLA] = (byte) 0xB0;
                 apdu[CardMngr.OFFSET_INS] = (byte) 0x53; 
@@ -365,13 +321,12 @@ public class SimpleAPDU {
                 }
 
                 byteResponse = response.getBytes();
+                short pwLen = (short) (byteResponse.length - 2);
 
                 
-                byte[] pw = new byte[20];
-                //for (int i=0; i<32; i++)
-                  //  pw[i] = byteResponse[i+5];
+                byte[] pw = new byte[pwLen];
                 
-                System.arraycopy(byteResponse, 0, pw, 0, 20);
+                System.arraycopy(byteResponse, 0, pw, 0, pwLen);
                 System.out.println("success1" + byteResponse.length);
                 String password = new String(pw);
                 System.out.println("success2");
@@ -385,9 +340,9 @@ public class SimpleAPDU {
                 
                 String fromPath2 = "/home/swatch/Desktop/Security_Technologies/Project/3.aes";
                 String toPath2 ="/home/swatch/Desktop/Security_Technologies/Project/3decrypt.png";
-                aes.decrypt(fromPath2, toPath2);*/
+                aes.decrypt(fromPath2, toPath2);
                 
-                
+                */
                 
         } catch (Exception ex) {
             System.out.println("Exception : " + ex);
