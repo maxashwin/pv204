@@ -3,21 +3,14 @@ package simpleapdu;
 import java.util.Arrays;
 import javax.smartcardio.ResponseAPDU;
 import java.security.*;
-import java.security.MessageDigest;
-import javacard.framework.ISO7816;
-import javacard.security.AESKey;
-import javacard.security.KeyBuilder;
-import javax.crypto.Cipher;
-import javacardx.crypto.*;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
+import javacard.framework.*;
+import javax.crypto.*;
 import com.licel.jcardsim.io.CAD;
 import com.licel.jcardsim.io.JavaxSmartCardInterface;
 import javacard.framework.APDU;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
-import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.spec.*;
 
 /**
  *
@@ -92,16 +85,22 @@ public class SimpleAPDU {
 
         MessageDigest hash256;
         hash256 = MessageDigest.getInstance("SHA-256");
+        byte[] hashsum1 = new byte[hash256.getDigestLength()];
+        //byte[] hashsum2 = new byte[hash256.getDigestLength()];
         
         if (hash256 != null) {
-            hash256.doFinal(arrayCat, (short) 0, (short) ((short) 2 * dataLen), tempArray, dataLen);
+            //hash256.doFinal(arrayCat, (short) 0, (short) ((short) 2 * dataLen), tempArray, dataLen);
             //System.out.println("Y||X = (K XOR OPAD) || X : " + CardMngr.bytesToHex(m_ramArray));
-
+            hashsum1 = hash256.digest(arrayCat);
         }
-
-        if (m_hash != null) {
-            m_hash.doFinal(m_ramArray, (short) 0, (short) (dataLen + (short) 20), arrayFinal, (short) 0);
+        System.arraycopy(hashsum1, 0, tempArray, dataLen, dataLen);
+        
+        
+        if (hash256 != null) {
+            //m_hash.doFinal(m_ramArray, (short) 0, (short) (dataLen + (short) 20), arrayFinal, (short) 0);
+            arrayFinal = hash256.digest(tempArray);
         }
+        
 
     }
 
