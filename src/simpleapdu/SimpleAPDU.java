@@ -45,6 +45,7 @@ public class SimpleAPDU {
 
     private static short DATALENGTH = 16;
     private static short KEYLENGTH = 16;
+    private static short IVLENGTH = 16;
 
     private static byte[] HMac = new byte[hashLength];
 
@@ -114,13 +115,41 @@ public class SimpleAPDU {
         System.out.println();
         return (bufferOut);
     }
+    
+    private static byte[] Decrypt(byte[] messageIn) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
+        
+        short dataLen = (short) messageIn.length;
+
+        //if ((messageIn.length % 16) != 0) ISOException.throwIt(15);
+      
+        byte[] byteDataToDecrypt = new byte[KEYLENGTH];
+        byte[] key = new byte[KEYLENGTH];
+        byte[] iv = new byte[IVLENGTH];
+
+        Cipher aesCipherForDecryption = Cipher.getInstance("AES/CBC/NoPadding");
+        key = cryptPassword;
+   
+        //m_decryptCipher.init(m_aesKey, Cipher.MODE_DECRYPT, messageIn, (short)(dataLen - IVLENGTH), IVLENGTH);
+        //m_decryptCipher.doFinal(messageIn, (short) 0, KeySize, m_ramArray, (short) 0);   
+        
+        SecretKey dataKey = new SecretKeySpec(cryptPassword, 0, cryptPassword.length, "AES");
+
+        System.arraycopy(messageIn, (short) 0, byteDataToDecrypt, (short) 0, (short)(dataLen - IVLENGTH));
+        System.arraycopy(messageIn, (short)(dataLen - IVLENGTH), iv, (short) 0, IVLENGTH);
+        aesCipherForDecryption.init(Cipher.DECRYPT_MODE, dataKey, new IvParameterSpec(iv));
+
+        //Generate the Cipher Text
+        byte[] byteClearText = aesCipherForDecryption.doFinal(byteDataToDecrypt);
+        
+        return (byteClearText);
+    }
 
     private static byte[] generateSecureAPDU(byte[] messageIn) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
 
         byte[] byteDataToEncrypt = new byte[messageIn.length];
         byteDataToEncrypt = messageIn;
 
-        byte[] iv = new byte[KEYLENGTH];
+        byte[] iv = new byte[IVLENGTH];
 
         SecureRandom prng;
         prng = new SecureRandom();
@@ -155,6 +184,40 @@ public class SimpleAPDU {
         System.arraycopy(msgIVHMAC, 0, bufferOut, MsgConcatIV.length, hashLength);
         
         return (bufferOut);
+    }
+    
+    private static byte[] verifySecureAPDU(byte[] messageIn) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException{
+        
+        byte[] apdubuf = messageIn;
+        short dataLen = (short) messageIn.length;
+        
+        short inMessageLength = (short)(dataLen - hashLength - IVLENGTH);
+        byte[] receivedPassword = new byte[inMessageLength];
+        
+        byte[] inHMAC = new byte[hashLength];
+        byte[] inMessageIV = new byte[inMessageLength + IVLENGTH];
+        
+        byte[] generatedHMAC = new byte[hashLength];
+        
+        //Util.arrayCopyNonAtomic(apdubuf, ISO7816.OFFSET_CDATA, inMessageIV, (short)0, (short)(inMessageLength + IVLENGTH));
+        System.arraycopy(apdubuf, (short) 0, inMessageIV, (short) 0, (short)(inMessageLength + IVLENGTH));
+
+        //Util.arrayCopyNonAtomic(apdubuf, (short)(ISO7816.OFFSET_CDATA + inMessageLength + IVLENGTH), inHMAC, (short)0, hashLength );
+        System.arraycopy(apdubuf, (short)(inMessageLength + IVLENGTH), inHMAC, (short) 0, hashLength);
+        
+        //Construct HMAC of Encr(MEssage) || IV
+        generatedHMAC = generateHMAC(inMessageIV);
+        
+        byte compare = Util.arrayCompare(inHMAC, (short)0, generatedHMAC, (short) 0, hashLength);
+        
+        if (compare == 0){
+            receivedPassword = Decrypt(inMessageIV);
+            return (receivedPassword);
+        } else {
+                System.out.println("Error in retrieving Password");
+                return null;
+        }
+        
     }
 
     public static void main(String[] args) {
@@ -214,13 +277,19 @@ public class SimpleAPDU {
             System.out.println();
             System.out.println("************************************************************");
             if ((byteResponse[byteResponse.length - 2] == -112) && (byteResponse[byteResponse.length - 1] == 0)) {
-                System.out.println("Getting of Encryption/ Decryption Key successful");
+                System.out.println("Getting of Password Successful");
+                byte[] receivedAPDUData = new byte[byteResponse.length-2];
+                System.arraycopy(byteResponse, 0, receivedAPDUData, 0, receivedAPDUData.length);
+
+                byte[] receivedPassword = verifySecureAPDU(receivedAPDUData);
+                System.out.println("receivedPassword " + cardManager.bytesToHex(receivedPassword));
             } else {
-                System.out.println("Getting of Encryption/ Decryption Key Unsuccessful");
+                System.out.println("Getting of Password Unsuccessful");
             }
             System.out.println("************************************************************");
             System.out.println();
-
+            
+            
             /**
              * **************Send the Encrypted Data to Card *********
              */
