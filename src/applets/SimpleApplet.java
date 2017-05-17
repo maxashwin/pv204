@@ -470,25 +470,5 @@ public class SimpleApplet extends javacard.framework.Applet
         }       
     }
 
-    /*
-    void EncryptDecrypt(APDU apdu) {
-        byte[]    apdubuf = apdu.getBuffer();
-        short     dataLen = apdu.setIncomingAndReceive();
-
-        if ((dataLen % 16) != 0) ISOException.throwIt(SW_CIPHER_DATA_LENGTH_BAD);
-      
-        byte[] encData = new byte[KeySize];
-        byte status = m_aesKey.getKey(encData, (short) 0);
- 
-        m_decryptCipher.init(m_aesKey, Cipher.MODE_DECRYPT, apdubuf, (short)(ISO7816.OFFSET_CDATA + KeySize), (short)(dataLen-KeySize));
-        m_decryptCipher.doFinal(apdubuf, ISO7816.OFFSET_CDATA, KeySize, m_ramArray, (short) 0);    
-
-        // COPY DECRYPTED DATA INTO OUTGOING BUFFER
-        Util.arrayCopyNonAtomic(m_ramArray, (short) 0, apdubuf, ISO7816.OFFSET_CDATA, KeySize);
-
-        // SEND OUTGOING BUFFER
-        apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, KeySize);
-    }*/
-
 }
 
