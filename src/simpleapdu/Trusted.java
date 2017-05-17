@@ -26,81 +26,17 @@ public class Trusted {
         (byte) 0x4C, (byte) 0x61, (byte) 0x62, (byte) 0x61, (byte) 0x6B,
         (byte) 0x41, (byte) 0x70, (byte) 0x70, (byte) 0x6C, (byte) 0x65, (byte) 0x74};
     
-    private static final byte KEY_32[] = {
-        (byte) 0x30, (byte) 0x31, (byte) 0x32, (byte) 0x33, (byte) 0x34, (byte) 0x35, (byte) 0x36, (byte) 0x37,
-        (byte) 0x38, (byte) 0x39, (byte) 0x40, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44, (byte) 0x45,
+    private static final byte LONGTERMKEY[] = {
         (byte) 0x30, (byte) 0x31, (byte) 0x32, (byte) 0x33, (byte) 0x34, (byte) 0x35, (byte) 0x36, (byte) 0x37,
         (byte) 0x38, (byte) 0x39, (byte) 0x40, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44, (byte) 0x45};
     
-    private static final byte KEY_16[] = {
-        (byte) 0x30, (byte) 0x31, (byte) 0x32, (byte) 0x33, (byte) 0x34, (byte) 0x35, (byte) 0x36, (byte) 0x37,
-        (byte) 0x38, (byte) 0x39, (byte) 0x40, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44, (byte) 0x45};
+    private static final byte PASSWORD[] = {
+        (byte) 0x40, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44, (byte) 0x45, (byte) 0x46, (byte) 0x47,
+        (byte) 0x48, (byte) 0x49, (byte) 0x50, (byte) 0x51, (byte) 0x52, (byte) 0x53, (byte) 0x54, (byte) 0x55};
     
      private static final byte TESTDATA[] = {
         (byte) 0x40, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44, (byte) 0x45, (byte) 0x46, (byte) 0x47,
         (byte) 0x38, (byte) 0x39, (byte) 0x40, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44, (byte) 0x45};
-     
-    private static final byte[] LONGTERMKEY = KEY_16;
-     
-    void generateHMAC(byte[] buffer) throws NoSuchAlgorithmException {
-        
-        byte[] apdubuf = buffer;
-        short dataLen = (short) buffer.length;
-       
-        byte ipad = 0x36;
-        byte opad = 0x5c;
-
-        byte[] opadK = new byte[dataLen];
-        byte[] ipadK = new byte[dataLen];
-
-        byte[] arrayCat = new byte[2 * dataLen];
-        byte[] arrayFinal = new byte[2 * dataLen];
-
-        byte[] key = new byte[dataLen];
-        
-        key = LONGTERMKEY;
-
-        for (short i = 0; i < dataLen; i++) {
-            ipadK[i] = (byte) (key[i] ^ ipad);
-            opadK[i] = (byte) (key[i] ^ opad);
-        }
-        
-        byte[] tempArray = new byte[256];
-
-        //Util.arrayCopyNonAtomic(opadK, (short) 0, m_ramArray, (short) 0, dataLen);
-        System.arraycopy(opadK, 0, tempArray, 0, dataLen);
-        // System.out.println("Y = K XOR OPAD " + CardMngr.bytesToHex(m_ramArray));
-
-        //Util.arrayCopyNonAtomic(ipadK, (short) 0, arrayCat, (short) 0, dataLen);
-        System.arraycopy(ipadK, 0, arrayCat, 0, dataLen);
-        // System.out.println("K XOR IPAD " + CardMngr.bytesToHex(arrayCat));
-
-        //Util.arrayCopyNonAtomic(apdubuf, ISO7816.OFFSET_CDATA, arrayCat, dataLen, dataLen);
-        System.arraycopy(apdubuf, 0, arrayCat, dataLen, dataLen);
-        // System.out.println("(K XOR IPAD) ||C " + CardMngr.bytesToHex(arrayCat));
-
-        MessageDigest hash256;
-        hash256 = MessageDigest.getInstance("SHA-256");
-        byte[] hashsum1 = new byte[hash256.getDigestLength()];
-        //byte[] hashsum2 = new byte[hash256.getDigestLength()];
-        System.out.println("Length of hash" + hash256.getDigestLength());
-        
-        if (hash256 != null) {
-            //hash256.doFinal(arrayCat, (short) 0, (short) ((short) 2 * dataLen), tempArray, dataLen);
-            //System.out.println("Y||X = (K XOR OPAD) || X : " + CardMngr.bytesToHex(m_ramArray));
-            hashsum1 = hash256.digest(arrayCat);
-        }
-        System.arraycopy(hashsum1, 0, tempArray, dataLen, dataLen);
-        
-        
-        if (hash256 != null) {
-            //m_hash.doFinal(m_ramArray, (short) 0, (short) (dataLen + (short) 20), arrayFinal, (short) 0);
-            arrayFinal = hash256.digest(tempArray);
-        }
-        
-
-    }
-
     
     public static void main(String[] args) {
         try {
@@ -211,7 +147,7 @@ public class Trusted {
                 System.out.println("************************************************************");
                 System.out.println();
 
-                /***************************Set the Encryption and Decryption Password **********************************/
+                /***************************Set the Long Term Key **********************************/
             
                 //Take a password and Set it in the Card in Trusted Environment
           
@@ -224,7 +160,7 @@ public class Trusted {
                 additionalDataLen = (short) LONGTERMKEY.length;
                 apdu = new byte[CardMngr.HEADER_LENGTH + additionalDataLen];
                 apdu[CardMngr.OFFSET_CLA] = (byte) 0xB0;
-                apdu[CardMngr.OFFSET_INS] = (byte) 0x62; //52 is for Setting the Encryption and Decrytption Key
+                apdu[CardMngr.OFFSET_INS] = (byte) 0x52; //52 is for Setting the Encryption and Decrytption Key
                 apdu[CardMngr.OFFSET_P1] = (byte) 0x10;
                 apdu[CardMngr.OFFSET_P2] = (byte) 0x00;
                 apdu[CardMngr.OFFSET_LC] = (byte) additionalDataLen;             
@@ -259,6 +195,56 @@ public class Trusted {
                     System.out.println("Setting of Long Term Key Unsuccessful");
                 System.out.println("************************************************************");
                 System.out.println();
+                
+                /***************************Set the Application Password **********************************/
+            
+                //Take a password and Set it in the Card in Trusted Environment
+          
+                //TO BE CHANGED.................USE A HASH FUNCTION TO HASH THE PASSWORD BEFORE SETTING
+                //byte[] LONGTERMKEY = secretKey.getEncoded(); 
+                //byte[] LONGTERMKEY = KEY_16;
+
+                //System.out.println("Encryption Decryption PW :" + cardManager.bytesToHex(LONGTERMKEY));
+                
+                additionalDataLen = (short) PASSWORD.length;
+                apdu = new byte[CardMngr.HEADER_LENGTH + additionalDataLen];
+                apdu[CardMngr.OFFSET_CLA] = (byte) 0xB0;
+                apdu[CardMngr.OFFSET_INS] = (byte) 0x62; //52 is for Setting the Encryption and Decrytption Key
+                apdu[CardMngr.OFFSET_P1] = (byte) 0x10;
+                apdu[CardMngr.OFFSET_P2] = (byte) 0x00;
+                apdu[CardMngr.OFFSET_LC] = (byte) additionalDataLen;             
+
+                if (additionalDataLen != 0){
+                    System.arraycopy(PASSWORD, 0, apdu, CardMngr.OFFSET_DATA, PASSWORD.length);
+                }
+
+                if (cardManager.ConnectToCard()) {
+                    // Select our application on card
+                    cardManager.sendAPDU(SELECT_SIMPLEAPPLET);
+                    // TODO: send proper APDU
+                    response = cardManager.sendAPDU(apdu);
+
+                    cardManager.DisconnectFromCard();
+                } else {
+                    System.out.println();
+                    System.out.println("************************************************************");
+                    System.out.println("Failed to connect to card");
+                    System.out.println("************************************************************");
+                    System.out.println();
+                }
+
+                byteResponse = response.getBytes();
+
+                System.out.println();
+                System.out.println("************************************************************");
+                if((byteResponse[0]==-112) &&  (byteResponse[1] == 0)){
+                    System.out.println("Setting of Application Password successful");
+                }
+                else
+                    System.out.println("Setting of Application Password Unsuccessful");
+                System.out.println("************************************************************");
+                System.out.println();
+
 
         } catch (Exception ex) {
             System.out.println("Exception : " + ex);
