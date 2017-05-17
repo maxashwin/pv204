@@ -8,10 +8,6 @@ import javax.crypto.*;
 import com.licel.jcardsim.io.*;
 import javax.crypto.spec.*;
 
-/**
- *
- * @author xsvenda
- */
 public class Trusted {
     static CardMngr cardManager = new CardMngr();
 
